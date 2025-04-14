@@ -100,9 +100,9 @@
 
 
 ## 6. 멀티 클러스터 자동 배포/관리
-http://blog.doctor-cha.com/gitops-for-multi-environment-multi-cluster-using-applicationset-and-kustomize
-https://blog.secuof.net/31
-https://yummy0102.tistory.com/category/%EC%BD%94%EB%93%9C%ED%94%84%EB%A0%88%EC%86%8C%20%EC%B2%B4%ED%97%98%EB%8B%A8/MSA
+- http://blog.doctor-cha.com/gitops-for-multi-environment-multi-cluster-using-applicationset-and-kustomize
+- https://blog.secuof.net/31
+- https://yummy0102.tistory.com/category/%EC%BD%94%EB%93%9C%ED%94%84%EB%A0%88%EC%86%8C%20%EC%B2%B4%ED%97%98%EB%8B%A8/MSA
 ### 아키텍처 설계 요약
 - GitOps 기반 멀티 클러스터 통합 관리
 - 자동 배포 + 모니터링 + 상태 일관성 확보
