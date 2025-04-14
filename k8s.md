@@ -44,7 +44,7 @@
 
 ### 아키텍처 설계 요약
 - Istio 또는 Linkerd를 통해 서비스 간 통신 제어
-- mTLS 및 라우팅 정책 기반 마이크로서비스 제어
+- mTLS(양방향 인증) 및 라우팅 정책 기반 마이크로서비스 제어
 
 ### 기술 스택
 - Istio / Linkerd
@@ -57,7 +57,7 @@
 - VirtualService + DestinationRule로 라우팅 정책 설정
 - AuthorizationPolicy로 접근 제어
 - mTLS 모드: STRICT, PERMISSIVE, DISABLE 선택
-- Kiali로 서비스 토폴로지 시각화
+- Kiali로 서비스 토폴로지 전체 시각화, jaeger로 개별 요청의 흐름/시간 추적 시각화
 
 
 ## 4. Backend API Gateway 및 API Catalog
