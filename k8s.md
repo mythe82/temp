@@ -100,7 +100,7 @@
 
 
 ## 6. 멀티 클러스터 자동 배포/관리
-
+http://blog.doctor-cha.com/gitops-for-multi-environment-multi-cluster-using-applicationset-and-kustomize
 ### 아키텍처 설계 요약
 - GitOps 기반 멀티 클러스터 통합 관리
 - 자동 배포 + 모니터링 + 상태 일관성 확보
