@@ -1,185 +1,33 @@
-(bitnet-cpp) malee@cstvm:~/BitNet$ huggingface-cli download tiiuae/Falcon3-7B-Instruct-1.58bit --local-dir models/Falcon3-7B-Instruct-1.58bit
-Fetching 8 files: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 8/8 [00:00<00:00, 142.06it/s]
-/home/malee/BitNet/models/Falcon3-7B-Instruct-1.58bit
-(bitnet-cpp) malee@cstvm:~/BitNet$ python setup_env.py -md models/Falcon3-7B-Instruct-1.58bit -q i2_s
-INFO:root:Compiling the code using CMake.
-INFO:root:Loading model from directory models/Falcon3-7B-Instruct-1.58bit.
-INFO:root:Converting HF model to GGUF format...
-ERROR:root:Error occurred while running command: Command '['/home/malee/anaconda3/envs/bitnet-cpp/bin/python', 'utils/convert-hf-to-gguf-bitnet.py', 'models/Falcon3-7B-Instruct-1.58bit', '--outtype', 'f32']' died with <Signals.SIGKILL: 9>., check details in logs/convert_to_f32_gguf.log
-
-(bitnet-cpp) malee@cstvm:~/BitNet$ cat logs/convert_to_f32_gguf.log
-INFO:hf-to-gguf:Loading model: Falcon3-7B-Instruct-1.58bit
-INFO:gguf.gguf_writer:gguf: This GGUF file is for Little Endian only
-INFO:hf-to-gguf:Set model parameters
-INFO:hf-to-gguf:gguf: context length = 32768
-INFO:hf-to-gguf:gguf: embedding length = 3072
-INFO:hf-to-gguf:gguf: feed forward length = 23040
-INFO:hf-to-gguf:gguf: head count = 12
-INFO:hf-to-gguf:gguf: key-value head count = 4
-INFO:hf-to-gguf:gguf: rope theta = 1000042
-INFO:hf-to-gguf:gguf: rms norm epsilon = 1e-06
-INFO:hf-to-gguf:gguf: file type = 0
-INFO:hf-to-gguf:Set model tokenizer
-INFO:gguf.vocab:Adding 128810 merge(s).
-INFO:gguf.vocab:Setting special token type eos to 11
-INFO:gguf.vocab:Setting special token type pad to 2023
-INFO:gguf.vocab:Setting special token type bos to 11
-INFO:gguf.vocab:Setting chat_template to {%- if tools %}
-{{- '<|system|>\n' }}
-{%- if messages[0]['role'] == 'system' %}
-{{- messages[0]['content'] }}
-{%- set remaining_messages = messages[1:] %}
-{%- else %}
-{%- set remaining_messages = messages %}
-{%- endif %}
-{{- 'You are a Falcon assistant skilled in function calling. You are helpful, respectful, and concise.\n\n# Tools\n\nYou have access to the following functions. You MUST use them to answer questions when needed. For each function call, you MUST return a JSON object inside <tool_call></tool_call> tags.\n\n<tools>' + tools|tojson(indent=2) + '</tools>\n\n# Output Format\n\nYour response MUST follow this format when making function calls:\n<tool_call>\n[\n  {"name": "function_name", "arguments": {"arg1": "value1", "arg2": "value2"}},\n  {"name": "another_function", "arguments": {"arg": "value"}}\n]\n</tool_call>\nIf no function calls are needed, respond normally without the tool_call tags.\n' }}
-{%- for message in remaining_messages %}
-{%- if message['role'] == 'user' %}
-{{- '<|user|>\n' + message['content'] + '\n' }}
-{%- elif message['role'] == 'assistant' %}
-{%- if message.content %}
-{{- '<|assistant|>\n' + message['content'] }}
-{%- endif %}
-{%- if message.tool_calls %}
-{{- '\n<tool_call>\n' }}
-{{- message.tool_calls|tojson(indent=2) }}
-{{- '\n</tool_call>' }}
-{%- endif %}
-{{- eos_token + '\n' }}
-{%- elif message['role'] == 'tool' %}
-{{- '<|assistant|>\n<tool_response>\n' + message['content'] + '\n</tool_response>\n' }}
-{%- endif %}
-{%- endfor %}
-{{- '<|assistant|>\n' if add_generation_prompt }}
-{%- else %}
-{%- for message in messages %}
-{%- if message['role'] == 'system' %}
-{{- '<|system|>\n' + message['content'] + '\n' }}
-{%- elif message['role'] == 'user' %}
-{{- '<|user|>\n' + message['content'] + '\n' }}
-{%- elif message['role'] == 'assistant' %}
-{%- if not loop.last %}
-{{- '<|assistant|>\n' + message['content'] + eos_token + '\n' }}
-{%- else %}
-{{- '<|assistant|>\n' + message['content'] + eos_token }}
-{%- endif %}
-{%- endif %}
-{%- if loop.last and add_generation_prompt %}
-{{- '<|assistant|>\n' }}
-{%- endif %}
-{%- endfor %}
-{%- endif %}
-INFO:hf-to-gguf:Exporting model to 'models/Falcon3-7B-Instruct-1.58bit/ggml-model-f32.gguf'
-INFO:hf-to-gguf:gguf: loading model part 'model.safetensors'
-INFO:hf-to-gguf:gguf: loading model part 'model.safetensors'
-INFO:hf-to-gguf:output.weight,               torch.bfloat16 --> F32, shape = {3072, 131080}
-INFO:hf-to-gguf:token_embd.weight,           torch.bfloat16 --> F32, shape = {3072, 131080}
-INFO:hf-to-gguf:blk.0.attn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.0.ffn_down.weight,       torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.0.ffn_gate.weight,       torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.0.ffn_up.weight,         torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.0.ffn_norm.weight,       torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.0.attn_k.weight,         torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.0.attn_output.weight,    torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.0.attn_q.weight,         torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.0.attn_v.weight,         torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.1.attn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.1.ffn_down.weight,       torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.1.ffn_gate.weight,       torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.1.ffn_up.weight,         torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.1.ffn_norm.weight,       torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.1.attn_k.weight,         torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.1.attn_output.weight,    torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.1.attn_q.weight,         torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.1.attn_v.weight,         torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.10.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.10.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.10.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.10.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.10.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.10.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.10.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.10.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.10.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.11.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.11.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.11.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.11.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.11.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.11.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.11.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.11.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.11.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.12.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.12.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.12.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.12.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.12.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.12.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.12.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.12.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.12.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.13.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.13.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.13.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.13.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.13.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.13.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.13.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.13.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.13.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.14.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.14.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.14.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.14.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.14.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.14.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.14.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.14.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.14.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.15.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.15.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.15.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.15.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.15.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.15.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.15.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.15.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.15.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.16.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.16.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.16.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.16.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.16.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.16.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.16.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.16.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.16.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.17.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.17.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.17.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.17.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.17.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.17.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.17.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.17.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.17.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.18.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.18.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.18.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.18.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.18.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.18.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.18.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.18.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.18.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.19.attn_norm.weight,     torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.19.ffn_down.weight,      torch.uint8 --> F32, shape = {23040, 3072}
-INFO:hf-to-gguf:blk.19.ffn_gate.weight,      torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.19.ffn_up.weight,        torch.uint8 --> F32, shape = {3072, 23040}
-INFO:hf-to-gguf:blk.19.ffn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
-INFO:hf-to-gguf:blk.19.attn_k.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.19.attn_output.weight,   torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.19.attn_q.weight,        torch.uint8 --> F32, shape = {3072, 3072}
-INFO:hf-to-gguf:blk.19.attn_v.weight,        torch.uint8 --> F32, shape = {3072, 1024}
-INFO:hf-to-gguf:blk.2.attn_norm.weight,      torch.bfloat16 --> F32, shape = {3072}
+pipeline {
+    agent any // 원본 파이프라인이 실행되는 에이전트 지정 권장
+    stages {
+        stage('Test SSH Connection') {
+            steps {
+                script {
+                    try {
+                        // 동일한 인증 정보 ID 사용
+                        withCredentials([
+                            sshUserPrivateKey(
+                                credentialsId: 'edu-mx-plm-app-node-pk',
+                                keyFileVariable: 'SSH_KEY',
+                                usernameVariable: 'SSH_USER'
+                            )
+                        ]) {
+                            sshCommand remote: [
+                                name: 'test-connection',
+                                host: '192.168.56.102',
+                                user: SSH_USER,
+                                identityFile: SSH_KEY,
+                                allowAnyHosts: true
+                            ], command: 'echo "Connected successfully!"'
+                        }
+                    } catch (Exception e) {
+                        error("Simple SSH command failed: ${e.getMessage()}")
+                        // 전체 스택 트레이스 출력
+                        echo "Full error: ${e.toString()}"
+                    }
+                }
+            }
+        }
+    }
+}
