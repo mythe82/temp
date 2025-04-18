@@ -1,33 +1,38 @@
-pipeline {
-    agent any // 원본 파이프라인이 실행되는 에이전트 지정 권장
-    stages {
-        stage('Test SSH Connection') {
-            steps {
-                script {
-                    try {
-                        // 동일한 인증 정보 ID 사용
-                        withCredentials([
-                            sshUserPrivateKey(
-                                credentialsId: 'edu-mx-plm-app-node-pk',
-                                keyFileVariable: 'SSH_KEY',
-                                usernameVariable: 'SSH_USER'
-                            )
-                        ]) {
-                            sshCommand remote: [
-                                name: 'test-connection',
-                                host: '192.168.56.102',
-                                user: SSH_USER,
-                                identityFile: SSH_KEY,
-                                allowAnyHosts: true
-                            ], command: 'echo "Connected successfully!"'
-                        }
-                    } catch (Exception e) {
-                        error("Simple SSH command failed: ${e.getMessage()}")
-                        // 전체 스택 트레이스 출력
-                        echo "Full error: ${e.toString()}"
-                    }
-                }
-            }
-        }
-    }
-}
+(base) malee@cstvm:~/csp-scrapper/app/output$ crontab -l
+# Edit this file to introduce tasks to be run by cron.
+# 
+# Each task to run has to be defined through a single line
+# indicating with different fields when the task will be run
+# and what command to run for the task
+# 
+# To define the time you can provide concrete values for
+# minute (m), hour (h), day of month (dom), month (mon),
+# and day of week (dow) or use '*' in these fields (for 'any').
+# 
+# Notice that tasks will be started based on the cron's system
+# daemon's notion of time and timezones.
+# 
+# Output of the crontab jobs (including errors) is sent through
+# email to the user the crontab file belongs to (unless redirected).
+# 
+# For example, you can run a backup of all your user accounts
+# at 5 a.m every week with:
+# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
+# 
+# For more information see the manual pages of crontab(5) and cron(8)
+# 
+# m h  dom mon dow   command
+45 9 * * FRI cd /home/malee/csp-scrapper && sudo docker run --rm --env-file ./app/.env -v $(pwd)/app/output:/app/output mythe627/csp-scrapper:1
+(base) malee@cstvm:~/csp-scrapper/app/output$ cd /home/malee/csp-scrapper && sudo docker run --rm --env-file ./app/.env -v $(pwd)/app/output:/app/output mythe627/csp-scrapper:1
+🚀 [Azure] 업데이트 수집 시작
+📄 [Azure] 업데이트 수집 완료 - 10건
+🚀 [GCP] 업데이트 수집 시작
+📄 [GCP] 업데이트 수집 완료 - 19건
+🚀 [AWS] 업데이트 수집 시작
+📄 [AWS] 업데이트 수집 완료 - 33건
+
+✅ 업데이트 데이터 저장 완료: output/cloud_updates_week_2025-04-18.json
+✅ 뉴스레터 메일 발송 완료
+(base) malee@cstvm:~/csp-scrapper$ 
+========
+위 크론탭이 동작하지 않습니다. 수동으로는 작동을 하네요. 문제가 무엇인가요?
