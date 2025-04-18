@@ -1,38 +1,38 @@
-(base) malee@cstvm:~/csp-scrapper/app/output$ crontab -l
-# Edit this file to introduce tasks to be run by cron.
-# 
-# Each task to run has to be defined through a single line
-# indicating with different fields when the task will be run
-# and what command to run for the task
-# 
-# To define the time you can provide concrete values for
-# minute (m), hour (h), day of month (dom), month (mon),
-# and day of week (dow) or use '*' in these fields (for 'any').
-# 
-# Notice that tasks will be started based on the cron's system
-# daemon's notion of time and timezones.
-# 
-# Output of the crontab jobs (including errors) is sent through
-# email to the user the crontab file belongs to (unless redirected).
-# 
-# For example, you can run a backup of all your user accounts
-# at 5 a.m every week with:
-# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
-# 
-# For more information see the manual pages of crontab(5) and cron(8)
-# 
-# m h  dom mon dow   command
-45 9 * * FRI cd /home/malee/csp-scrapper && sudo docker run --rm --env-file ./app/.env -v $(pwd)/app/output:/app/output mythe627/csp-scrapper:1
-(base) malee@cstvm:~/csp-scrapper/app/output$ cd /home/malee/csp-scrapper && sudo docker run --rm --env-file ./app/.env -v $(pwd)/app/output:/app/output mythe627/csp-scrapper:1
-🚀 [Azure] 업데이트 수집 시작
-📄 [Azure] 업데이트 수집 완료 - 10건
-🚀 [GCP] 업데이트 수집 시작
-📄 [GCP] 업데이트 수집 완료 - 19건
-🚀 [AWS] 업데이트 수집 시작
-📄 [AWS] 업데이트 수집 완료 - 33건
+크론탭이 설정하신 대로 매주 금요일 9시 45분에 실행되지 않고 수동으로는 잘 작동되니 답답하시겠어요. 몇 가지 সম্ভাব্য 원인을 살펴보고 해결 방법을 찾아보도록 하겠습니다.
+주요 예상 원인:
+ * 작업 디렉토리 불일치: 크론탭은 사용자의 현재 작업 디렉토리가 아닌, 시스템의 기본 디렉토리에서 실행될 가능성이 높습니다. cd /home/malee/csp-scrapper 명령이 크론탭 환경에서는 제대로 실행되지 않아 상대 경로(./app/.env, ./app/output)를 찾지 못할 수 있습니다.
+ * 권한 문제: sudo 명령은 일반적으로 터미널 환경에서 사용자의 비밀번호를 요구하거나, sudoers 설정이 필요합니다. 크론탭은 비대화형 환경이므로 비밀번호를 입력할 수 없으며, sudoers에 해당 명령에 대한 NOPASSWD 설정이 되어 있지 않다면 권한 오류가 발생할 수 있습니다.
+ * 환경 변수 누락: .env 파일에 정의된 환경 변수들이 크론탭 실행 환경에서는 로드되지 않을 수 있습니다.
+ * Docker 데몬 권한: 크론탭을 실행하는 사용자가 Docker 데몬에 접근할 권한이 없을 수 있습니다.
+ * PATH 환경 변수: docker 명령이 시스템의 기본 PATH에 등록되어 있지 않아 크론탭 환경에서 찾지 못할 수 있습니다.
+ * 시간대 불일치: 시스템의 시간대 설정과 크론탭이 인식하는 시간대가 다를 수 있습니다.
+ * 오류 로깅 부재: 크론탭 작업에서 발생하는 오류를 확인하기 위한 로깅 설정이 되어 있지 않아 문제의 원인을 파악하기 어려울 수 있습니다.
+해결 방법:
+ * 절대 경로 사용: 크론탭에 사용된 모든 경로를 절대 경로로 변경해 보세요.
+   45 9 * * FRI docker run --rm --env-file /home/malee/csp-scrapper/app/.env -v /home/malee/csp-scrapper/app/output:/app/output mythe627/csp-scrapper:1
 
-✅ 업데이트 데이터 저장 완료: output/cloud_updates_week_2025-04-18.json
-✅ 뉴스레터 메일 발송 완료
-(base) malee@cstvm:~/csp-scrapper$ 
-========
-위 크론탭이 동작하지 않습니다. 수동으로는 작동을 하네요. 문제가 무엇인가요?
+   cd /home/malee/csp-scrapper && 부분을 제거하고, --env-file과 -v 옵션에 사용된 상대 경로를 /home/malee/csp-scrapper/app/.env와 /home/malee/csp-scrapper/app/output으로 수정했습니다.
+ * sudo 없이 실행: Docker 명령은 일반적으로 docker 그룹에 속한 사용자 또는 root 권한으로 실행됩니다. 현재 사용자가 docker 그룹에 속해 있다면 sudo 없이 명령을 실행해 보세요.
+   45 9 * * FRI docker run --rm --env-file /home/malee/csp-scrapper/app/.env -v /home/malee/csp-scrapper/app/output:/app/output mythe627/csp-scrapper:1
+
+   만약 docker 그룹에 속해 있지 않다면, 해당 사용자를 docker 그룹에 추가하거나 (보안상 권장되지는 않지만) sudoers 설정을 통해 NOPASSWD로 해당 Docker 명령을 실행하도록 허용해야 합니다.
+ * 환경 변수 명시적 설정 (선택 사항): 필요한 환경 변수를 직접 크론탭에 명시적으로 설정할 수도 있습니다. 다만, .env 파일을 사용하는 것이 더 관리하기 편리합니다.
+ * Docker 데몬 권한 확인: sudo docker ps 명령을 현재 사용자로 실행했을 때 오류가 발생하지 않는지 확인하여 Docker 데몬 접근 권한을 확인해 보세요.
+ * PATH 환경 변수 명시적 설정 (선택 사항): 크론탭 내에서 docker 명령을 찾을 수 있도록 PATH 환경 변수를 명시적으로 설정할 수 있습니다.
+   45 9 * * FRI PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin docker run --rm --env-file /home/malee/csp-scrapper/app/.env -v /home/malee/csp-scrapper/app/output:/app/output mythe627/csp-scrapper:1
+
+   실제 docker 실행 파일의 경로에 맞춰 PATH를 수정해야 할 수 있습니다 (which docker 명령으로 확인 가능).
+ * 시간대 확인: 시스템의 시간대 설정(timedatectl)과 크론탭이 인식하는 시간대가 일치하는지 확인해 보세요. 필요하다면 TZ 환경 변수를 크론탭에 설정할 수 있습니다.
+ * 오류 로깅 설정: 크론탭 작업의 출력을 파일로 리디렉션하여 오류를 확인해 보세요.
+   45 9 * * FRI docker run --rm --env-file /home/malee/csp-scrapper/app/.env -v /home/malee/csp-scrapper/app/output:/app/output mythe627/csp-scrapper:1 >> /home/malee/csp-scrapper/cron.log 2>&1
+
+   이렇게 설정하면 작업의 표준 출력과 표준 에러가 /home/malee/csp-scrapper/cron.log 파일에 기록됩니다. 크론탭이 실행되지 않거나 오류가 발생했을 때 이 파일을 확인하여 원인을 파악할 수 있습니다.
+권장하는 해결 순서:
+ * 절대 경로 사용으로 크론탭을 수정해 보세요. 이것이 가장 흔한 문제입니다.
+ * sudo 없이 실행해 보세요. 현재 사용자가 Docker 그룹에 속해 있는지 확인하고, 속해 있다면 sudo를 제거합니다.
+ * 오류 로깅 설정을 추가하여 크론탭 실행 결과를 확인해 보세요.
+수정 후에는 크론탭을 저장하고 기다리시거나, 테스트를 위해 분 단위로 실행되도록 잠시 변경하여 동작 여부를 확인해 볼 수 있습니다. 예를 들어, 매분 실행되도록 설정하려면 다음과 같이 할 수 있습니다.
+* * * * * docker run --rm --env-file /home/malee/csp-scrapper/app/.env -v /home/malee/csp-scrapper/app/output:/app/output mythe627/csp-scrapper:1 >> /home/malee/csp-scrapper/cron.log 2>&1
+
+테스트 후에는 원래의 시간 설정( 45 9 * * FRI )으로 되돌리는 것을 잊지 마세요.
+이 정보가 크론탭 문제를 해결하는 데 도움이 되기를 바랍니다! 혹시 수정 후에도 문제가 지속된다면, 로그 파일의 내용이나 다른 증상을 알려주시면 더욱 정확한 진단을 도와드릴 수 있습니다.
