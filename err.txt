@@ -1,41 +1,166 @@
-로그 파일조차 남지 않는다면 크론탭 작업 자체가 시작되지 않았을 가능성이 높습니다. 몇 가지 추가적인 확인 사항과 해결 방법을 제시해 드릴게요.
-확인해야 할 사항:
- * 크론 서비스 상태 확인: 크론 데몬이 정상적으로 실행되고 있는지 확인해야 합니다. 다음 명령어를 터미널에 입력하고 실행해 보세요.
-   sudo systemctl status cron
-
-   또는
-   sudo service cron status
-
-   결과를 통해 크론 서비스가 active (running) 상태인지 확인합니다. 만약 비활성화되어 있다면 다음 명령어로 활성화하고 부팅 시 자동 실행되도록 설정합니다.
-   sudo systemctl start cron
-sudo systemctl enable cron
-
- * 크론탭 문법 오류: 크론탭 파일에 문법적인 오류가 있을 경우 크론 데몬이 해당 작업을 읽어들이지 못할 수 있습니다. crontab -l 명령으로 다시 한번 내용을 확인하고, 각 필드가 올바르게 작성되었는지 (분, 시, 일, 월, 요일, 명령어) 살펴보세요. 특히 공백이나 특수문자가 예상치 않게 들어가 있지 않은지 확인합니다.
- * 빈 줄 또는 주석 확인: 크론탭 파일의 마지막 줄이 빈 줄로 끝나지 않으면 일부 시스템에서 마지막 작업이 실행되지 않을 수 있습니다. 또한, 주석(#으로 시작하는 줄) 외에 불필요한 빈 줄이 있는지 확인해 보세요.
- * 사용자 크론탭 편집: 혹시 root 사용자의 크론탭을 편집하고 계신가요? 일반 사용자(malee)의 작업을 설정하려면 crontab -e 명령을 사용하여 해당 사용자의 크론탭을 편집해야 합니다. sudo crontab -e는 root 사용자의 크론탭을 편집하는 것이므로, 의도한 것이 아니라면 sudo 없이 crontab -e를 실행해야 합니다. 현재 crontab -l의 결과로 보아 malee 사용자의 크론탭을 확인하신 것 같으니 이 부분은 넘어가도 될 것 같습니다.
- * 파일 권한: 실행하려는 스크립트나 Docker 명령에 필요한 파일들의 권한이 올바르게 설정되어 있는지 확인하세요. 크론 데몬이 해당 파일에 접근하고 실행할 수 있는 권한이 있어야 합니다.
- * 시스템 로그 확인: 크론 관련 이벤트가 시스템 로그에 기록될 수 있습니다. 다음 명령어를 사용하여 크론 관련 로그를 확인해 보세요.
-   sudo grep cron /var/log/syslog
-
-   또는
-   sudo journalctl -u cron.service
-
-   이 로그에서 크론 작업이 시작되려고 시도했는지, 아니면 어떤 오류가 발생했는지 힌트를 얻을 수 있습니다.
-추가적인 시도:
- * 간단한 테스트 명령: 먼저 간단한 명령어가 크론탭에서 실행되는지 테스트해 보세요. 예를 들어, 매분 현재 시각을 파일에 기록하는 작업을 추가해 봅니다.
-   * * * * * date >> /home/malee/test_cron.log 2>&1
-
-   이후 잠시 기다렸다가 /home/malee/test_cron.log 파일이 생성되고 내용이 기록되는지 확인합니다. 이렇게 하면 크론탭 자체가 작동하는지 여부를 먼저 파악할 수 있습니다. 만약 이 테스트도 실패한다면 크론 데몬 설정이나 크론탭 문법에 문제가 있을 가능성이 높습니다.
- * 스크립트 파일로 래핑: Docker 명령이 복잡하므로, 이를 간단한 쉘 스크립트 파일로 만들고 크론탭에서는 이 스크립트 파일을 실행하도록 해보는 것도 문제 해결에 도움이 될 수 있습니다. 예를 들어 /home/malee/csp-scrapper/run_docker.sh 파일을 만들고 Docker 명령을 넣어 실행 권한을 준 후, 크론탭에서 이 스크립트를 실행하도록 설정합니다.
-   /home/malee/csp-scrapper/run_docker.sh 내용:
-   #!/bin/bash
-docker run --rm --env-file /home/malee/csp-scrapper/app/.env -v /home/malee/csp-scrapper/app/output:/app/output mythe627/csp-scrapper:1 >> /home/malee/csp-scrapper/cron.log 2>&1
-
-   실행 권한 부여:
-   chmod +x /home/malee/csp-scrapper/run_docker.sh
-
-   크론탭 설정:
-   45 9 * * FRI /home/malee/csp-scrapper/run_docker.sh
-
-   이렇게 하면 스크립트 파일 내에서 모든 실행 환경을 명시적으로 관리할 수 있으며, 크론탭 자체의 복잡성을 줄일 수 있습니다.
-이 단계를 따라가면서 문제의 원인을 하나씩 좁혀나가면 크론탭이 작동하지 않는 이유를 찾을 수 있을 거예요. 테스트 결과를 알려주시거나, 시스템 로그에서 발견된 내용이 있다면 공유해 주세요. 문제 해결을 위해 계속해서 도와드리겠습니다.
+docker inspect plm-app-portal
+[
+    {
+        "Id": "bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e",
+        "Created": "2025-04-18T09:17:26.457836336Z",
+        "Path": "/opt/mendix/build/startup.py",
+        "Args": [],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 770629,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2025-04-18T09:17:26.711723613Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:248e210fcbc00d56749303d4d96012eca8b8e981ee17bf93a8c86d4c9fccb931",
+        "ResolvConfPath": "/var/lib/docker/containers/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e/hostname",
+        "HostsPath": "/var/lib/docker/containers/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e/hosts",
+        "LogPath": "/var/lib/docker/containers/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e-json.log",
+        "Name": "/plm-app-portal",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": [
+            "68dc8fb36106c62b04bc737ef4d3c8c93fb5811117669ed2df9198ea37b458e9"
+        ],
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "default",
+            "PortBindings": {
+                "18080/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "18080"
+                    }
+                ],
+                "18082/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "18082"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "host",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": false,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/asound",
+                "/proc/acpi",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/sys/firmware",
+                "/sys/devices/virtual/powercap"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "LowerDir": "/var/lib/docker/overlay2/ea734872122f09fbd4710273751b351c09f11c9d19906c4173c05219fb050427-init/diff:/var/lib/docker/overlay2/b3569b229bd486b46c690c83470c0cde34772aada3a106541bc59481bce5a859/diff:/var/lib/docker/overlay2/44779b92680835b27965cb161d333958024db5d3861c6bbd064e566c877afaa2/diff:/var/lib/docker/overlay2/bdbbd8a546dab1125d3cc48d3e6903291c10a4f1f8cd163b8b4b8329157de28c/diff:/var/lib/docker/overlay2/3519756de4b3ca6bc106dc137f5548261e47782b5cd21e865a62a2c65203b943/diff:/var/lib/docker/overlay2/659d20257d63d0ed53066605234a4c05a01e7e0bcb09ded27224054b83d008b6/diff:/var/lib/docker/overlay2/e9da3ce698fc694a2e9960efa44b47b2f14f867b1a538766df74b563d70b0b08/diff:/var/lib/docker/overlay2/2d7333ce9871e7dd71395a887f067c6007a06e8b3ef2b78a508148d26611580b/diff:/var/lib/docker/overlay2/b95ec80abcf156ae7daad7392e26b238c2c12323ce5435a69a82f663ddcd3069/diff:/var/lib/docker/overlay2/e848eaa3d8aa0c5dd956df4fec0b1a0e3a5b9aeb521a6d6ae3849b5edd64f3c9/diff:/var/lib/docker/overlay2/f0e2e81d6c20afd6c5ccba87b5230af4abb48ed35c2c07e23b2551def1e23b74/diff",
+                "MergedDir": "/var/lib/docker/overlay2/ea734872122f09fbd4710273751b351c09f11c9d19906c4173c05219fb050427/merged",
+                "UpperDir": "/var/lib/docker/overlay2/ea734872122f09fbd4710273751b351c09f11c9d19906c4173c05219fb050427/diff",
+                "WorkDir": "/var/lib/docker/overlay2/ea734872122f09fbd4710273751b351c09f11c9d19906c4173c05219fb050427/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [],
+        "Config": {
+            "Hostname": "bf45d5a7205a",
+            "Domainname": "",
+            "User": "1001",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "ExposedPorts": {
+                "18080/tcp": {},
+                "18082/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+==========
+위 결과는 도커 명세내역인데 cpu와 메모리 관련된 내용을 분석중에 있어. 파악 후 현황을 알려줘.
