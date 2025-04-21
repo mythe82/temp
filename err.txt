@@ -1,166 +1,28 @@
-docker inspect plm-app-portal
-[
-    {
-        "Id": "bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e",
-        "Created": "2025-04-18T09:17:26.457836336Z",
-        "Path": "/opt/mendix/build/startup.py",
-        "Args": [],
-        "State": {
-            "Status": "running",
-            "Running": true,
-            "Paused": false,
-            "Restarting": false,
-            "OOMKilled": false,
-            "Dead": false,
-            "Pid": 770629,
-            "ExitCode": 0,
-            "Error": "",
-            "StartedAt": "2025-04-18T09:17:26.711723613Z",
-            "FinishedAt": "0001-01-01T00:00:00Z"
-        },
-        "Image": "sha256:248e210fcbc00d56749303d4d96012eca8b8e981ee17bf93a8c86d4c9fccb931",
-        "ResolvConfPath": "/var/lib/docker/containers/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e/resolv.conf",
-        "HostnamePath": "/var/lib/docker/containers/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e/hostname",
-        "HostsPath": "/var/lib/docker/containers/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e/hosts",
-        "LogPath": "/var/lib/docker/containers/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e/bf45d5a7205ae53912616b5508d05774326038109e958b6957b4d4d27ee22d5e-json.log",
-        "Name": "/plm-app-portal",
-        "RestartCount": 0,
-        "Driver": "overlay2",
-        "Platform": "linux",
-        "MountLabel": "",
-        "ProcessLabel": "",
-        "AppArmorProfile": "",
-        "ExecIDs": [
-            "68dc8fb36106c62b04bc737ef4d3c8c93fb5811117669ed2df9198ea37b458e9"
-        ],
-        "HostConfig": {
-            "Binds": null,
-            "ContainerIDFile": "",
-            "LogConfig": {
-                "Type": "json-file",
-                "Config": {}
-            },
-            "NetworkMode": "default",
-            "PortBindings": {
-                "18080/tcp": [
-                    {
-                        "HostIp": "",
-                        "HostPort": "18080"
-                    }
-                ],
-                "18082/tcp": [
-                    {
-                        "HostIp": "",
-                        "HostPort": "18082"
-                    }
-                ]
-            },
-            "RestartPolicy": {
-                "Name": "unless-stopped",
-                "MaximumRetryCount": 0
-            },
-            "AutoRemove": false,
-            "VolumeDriver": "",
-            "VolumesFrom": null,
-            "ConsoleSize": [
-                0,
-                0
-            ],
-            "CapAdd": null,
-            "CapDrop": null,
-            "CgroupnsMode": "host",
-            "Dns": [],
-            "DnsOptions": [],
-            "DnsSearch": [],
-            "ExtraHosts": null,
-            "GroupAdd": null,
-            "IpcMode": "private",
-            "Cgroup": "",
-            "Links": null,
-            "OomScoreAdj": 0,
-            "PidMode": "",
-            "Privileged": false,
-            "PublishAllPorts": false,
-            "ReadonlyRootfs": false,
-            "SecurityOpt": null,
-            "UTSMode": "",
-            "UsernsMode": "",
-            "ShmSize": 67108864,
-            "Runtime": "runc",
-            "Isolation": "",
-            "CpuShares": 0,
-            "Memory": 0,
-            "NanoCpus": 0,
-            "CgroupParent": "",
-            "BlkioWeight": 0,
-            "BlkioWeightDevice": [],
-            "BlkioDeviceReadBps": [],
-            "BlkioDeviceWriteBps": [],
-            "BlkioDeviceReadIOps": [],
-            "BlkioDeviceWriteIOps": [],
-            "CpuPeriod": 0,
-            "CpuQuota": 0,
-            "CpuRealtimePeriod": 0,
-            "CpuRealtimeRuntime": 0,
-            "CpusetCpus": "",
-            "CpusetMems": "",
-            "Devices": [],
-            "DeviceCgroupRules": null,
-            "DeviceRequests": null,
-            "MemoryReservation": 0,
-            "MemorySwap": 0,
-            "MemorySwappiness": null,
-            "OomKillDisable": false,
-            "PidsLimit": null,
-            "Ulimits": null,
-            "CpuCount": 0,
-            "CpuPercent": 0,
-            "IOMaximumIOps": 0,
-            "IOMaximumBandwidth": 0,
-            "MaskedPaths": [
-                "/proc/asound",
-                "/proc/acpi",
-                "/proc/kcore",
-                "/proc/keys",
-                "/proc/latency_stats",
-                "/proc/timer_list",
-                "/proc/timer_stats",
-                "/proc/sched_debug",
-                "/proc/scsi",
-                "/sys/firmware",
-                "/sys/devices/virtual/powercap"
-            ],
-            "ReadonlyPaths": [
-                "/proc/bus",
-                "/proc/fs",
-                "/proc/irq",
-                "/proc/sys",
-                "/proc/sysrq-trigger"
-            ]
-        },
-        "GraphDriver": {
-            "Data": {
-                "LowerDir": "/var/lib/docker/overlay2/ea734872122f09fbd4710273751b351c09f11c9d19906c4173c05219fb050427-init/diff:/var/lib/docker/overlay2/b3569b229bd486b46c690c83470c0cde34772aada3a106541bc59481bce5a859/diff:/var/lib/docker/overlay2/44779b92680835b27965cb161d333958024db5d3861c6bbd064e566c877afaa2/diff:/var/lib/docker/overlay2/bdbbd8a546dab1125d3cc48d3e6903291c10a4f1f8cd163b8b4b8329157de28c/diff:/var/lib/docker/overlay2/3519756de4b3ca6bc106dc137f5548261e47782b5cd21e865a62a2c65203b943/diff:/var/lib/docker/overlay2/659d20257d63d0ed53066605234a4c05a01e7e0bcb09ded27224054b83d008b6/diff:/var/lib/docker/overlay2/e9da3ce698fc694a2e9960efa44b47b2f14f867b1a538766df74b563d70b0b08/diff:/var/lib/docker/overlay2/2d7333ce9871e7dd71395a887f067c6007a06e8b3ef2b78a508148d26611580b/diff:/var/lib/docker/overlay2/b95ec80abcf156ae7daad7392e26b238c2c12323ce5435a69a82f663ddcd3069/diff:/var/lib/docker/overlay2/e848eaa3d8aa0c5dd956df4fec0b1a0e3a5b9aeb521a6d6ae3849b5edd64f3c9/diff:/var/lib/docker/overlay2/f0e2e81d6c20afd6c5ccba87b5230af4abb48ed35c2c07e23b2551def1e23b74/diff",
-                "MergedDir": "/var/lib/docker/overlay2/ea734872122f09fbd4710273751b351c09f11c9d19906c4173c05219fb050427/merged",
-                "UpperDir": "/var/lib/docker/overlay2/ea734872122f09fbd4710273751b351c09f11c9d19906c4173c05219fb050427/diff",
-                "WorkDir": "/var/lib/docker/overlay2/ea734872122f09fbd4710273751b351c09f11c9d19906c4173c05219fb050427/work"
-            },
-            "Name": "overlay2"
-        },
-        "Mounts": [],
-        "Config": {
-            "Hostname": "bf45d5a7205a",
-            "Domainname": "",
-            "User": "1001",
-            "AttachStdin": false,
-            "AttachStdout": false,
-            "AttachStderr": false,
-            "ExposedPorts": {
-                "18080/tcp": {},
-                "18082/tcp": {}
-            },
-            "Tty": false,
-            "OpenStdin": false,
-            "StdinOnce": false,
-==========
-위 결과는 도커 명세내역인데 cpu와 메모리 관련된 내용을 분석중에 있어. 파악 후 현황을 알려줘.
+[infodba@ptmxhomea02 ~]$ lscpu
+Architecture:        x86_64
+CPU op-mode(s):      32-bit, 64-bit
+Byte Order:          Little Endian
+CPU(s):              32
+On-line CPU(s) list: 0-31
+Thread(s) per core:  1
+Core(s) per socket:  1
+Socket(s):           32
+NUMA node(s):        2
+Vendor ID:           GenuineIntel
+CPU family:          6
+Model:               85
+Model name:          Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz
+Stepping:            7
+CPU MHz:             2992.968
+BogoMIPS:            5985.93
+Hypervisor vendor:   VMware
+Virtualization type: full
+L1d cache:           32K
+L1i cache:           32K
+L2 cache:            1024K
+L3 cache:            36608K
+NUMA node0 CPU(s):   0-15
+NUMA node1 CPU(s):   16-31
+Flags:               fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon nopl xtopology tsc_reliable nonstop_tsc cpuid pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch invpcid_single ssbd ibrs ibpb stibp ibrs_enhanced fsgsbase tsc_adjust bmi1 avx2 smep bmi2 invpcid avx512f avx512dq rdseed adx smap clflushopt clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves arat pku ospke avx512_vnni md_clear flush_l1d arch_capabilities
+===
+위 결과에서 컨테이너에 할당할 수있는 가용량은 얼마고 제한 옵션할때 어느 부분을 참고해 설정해야해?
