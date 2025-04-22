@@ -1,435 +1,119 @@
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import json
-import time
-from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
-from sumy.summarizers.text_rank import TextRankSummarizer
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
-import feedparser
-from dotenv import load_dotenv
-import os
-import re
-from deep_translator import GoogleTranslator
-import matplotlib.pyplot as plt
-import base64
-from io import BytesIO
-import numpy as np
-import platform
-
-# ---------- 환경변수 로딩 ----------
-load_dotenv()
-
-SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = int(os.getenv("SMTP_PORT"))
-SENDER = os.getenv("SENDER")
-SENDER_PASSWORD = os.getenv("EMAIL_PASSWORD")
-RECEIVERS = os.getenv("RECEIVERS").split(",")
-
-# ---------- 날짜 범위 ----------
-today = datetime.today()
-start_of_week = today - timedelta(days=today.weekday())
-end_of_week = start_of_week + timedelta(days=6)
-
-all_data = []
-stop_scraping = False
-
-# ---------- 공통 함수 ----------
-def summarize_text(text, sentence_count=2, max_length=300):
-    try:
-        parser = PlaintextParser.from_string(text, Tokenizer("english"))
-        summarizer = TextRankSummarizer()
-        summary = summarizer(parser.document, sentence_count)
-        summary_text = " ".join(str(sentence) for sentence in summary)
-        summary_text = summary_text.strip()
-
-        if len(summary_text) > max_length:
-            summary_text = summary_text[:max_length].rstrip() + "..."
-
-        return summary_text
-    except Exception:
-        return text
-
-
-def summarize_long_text(text, max_chunks=5, max_length=150):
-    try:
-        chunks = re.split(r'\n|\.\s+', text)
-        summaries = []
-        for chunk in chunks:
-            chunk = chunk.strip()
-            if len(chunk) < 50:
-                continue
-            summary = summarize_text(chunk, sentence_count=1, max_length=max_length)
-            summaries.append(summary)
-            if len(summaries) >= max_chunks:
-                break
-        return " ".join(summaries)
-    except Exception as e:
-        print(f"❌ 긴 텍스트 요약 오류: {e}")
-        return text
-
-
-def translate_to_korean(text):
-    try:
-        return GoogleTranslator(source='en', target='ko').translate(text)
-    except Exception as e:
-        print(f"❌ 번역 오류: {e}")
-        return text
-
-
-def clean_aws_summary(summary_html):
-    try:
-        summary_text = BeautifulSoup(summary_html, "html.parser").get_text(separator=" ").strip()
-        summary_text = re.sub(r"\s+", " ", summary_text)
-        summary_text = re.sub(r"https?://\S+", "", summary_text)
-        summary_text = re.sub(r"자세히 보기", "", summary_text, flags=re.IGNORECASE)
-
-        phrases_to_remove = [
-            r"이 새로운 기능은.*?사용할 수 있습니다\.",
-            r"자세한 내용은.*?참고하세요\.",
-            r"고객은.*?사용할 수 있습니다\.",
-        ]
-        for phrase in phrases_to_remove:
-            summary_text = re.sub(phrase, "", summary_text)
-
-        return summary_text.strip()
-    except Exception as e:
-        print(f"❌ AWS 요약 클렌징 오류: {e}")
-        return summary_html
-
-
-def clean_gcp_summary(summary_html):
-    try:
-        summary_text = BeautifulSoup(summary_html, "html.parser").get_text(separator=" ").strip()
-        summary_text = re.sub(r"\s+", " ", summary_text)
-        summary_text = re.sub(r"https?://\S+", "", summary_text)
-        summary_text = re.sub(r"자세히 보기|Learn more", "", summary_text, flags=re.IGNORECASE)
-        return summary_text.strip()
-    except Exception as e:
-        print(f"❌ GCP 요약 클렌징 오류: {e}")
-        return summary_html
-
-# ---------- 배너 Base64 ----------
-def get_banner_base64():
-    banner_path = "banner.png"  # 배너 이미지 파일명
-    with open(banner_path, "rb") as f:
-        img_base64 = base64.b64encode(f.read()).decode("utf-8")
-    return f"data:image/png;base64,{img_base64}"
-
-# ---------- 폰트 자동 설정 ----------
-def set_korean_font():
-    system = platform.system()
-    if system == "Windows":
-        plt.rc('font', family='Malgun Gothic')
-    elif system == "Darwin":
-        plt.rc('font', family='Apple SD Gothic Neo')
-    else:
-        plt.rc('font', family='NanumGothic')
-    plt.rcParams['axes.unicode_minus'] = False
-
-# ---------- Azure 크롤러 ----------
-def crawl_azure_updates():
-    global all_data, stop_scraping
-    print("🚀 [Azure] 업데이트 수집 시작")
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        try:
-            page = browser.new_page()
-            base_url = "https://azure.microsoft.com/en-us/updates?filters=%5B%22Launched%22%5D"
-            try:
-                page.goto(base_url, timeout=10000)
-            except Exception as e:
-                print(f"❌ [Azure] 페이지 로딩 실패: {e}")
-                return
-
-            page.wait_for_timeout(3000)
-
-            pagination_items = page.query_selector_all("ul#pagination li")
-            last_page_num = 1
-            for item in pagination_items:
-                text = item.inner_text().strip()
-                if text.isdigit():
-                    last_page_num = max(last_page_num, int(text))
-
-            current_page = 1
-            while current_page <= last_page_num:
-                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                time.sleep(2)
-
-                html = page.content()
-                soup = BeautifulSoup(html, "html.parser")
-                items = soup.select("li.ocr-faq-item.accordion_bg")
-
-                for item in items:
-                    try:
-                        title_elem = item.select_one("h2.lead")
-                        title = title_elem.get_text(strip=True) if title_elem else ""
-
-                        content_elem = item.select_one("div.accordion-item.col-xl-8")
-                        content = content_elem.get_text(strip=True).replace("\n", " ") if content_elem else ""
-
-                        date_elem = (
-                            item.select_one("div.updated_dates div.modified_date span")
-                            or item.select_one("div.updated_dates div.created_date span")
-                        )
-                        date_text = date_elem.get_text(strip=True) if date_elem else ""
-                        post_date = datetime.strptime(date_text, "%m/%d/%Y") if date_text else None
-
-                        rss_link_elem = item.select_one('a[data-bi-cn="Accordion detail - Share RSS"]')
-                        rss_link = rss_link_elem["href"] if rss_link_elem else ""
-
-                        post_id = ""
-                        if rss_link:
-                            post_id = rss_link.split("/")[-1]
-
-                        post_link = f"https://azure.microsoft.com/updates?id={post_id}" if post_id else ""
-
-                        if post_date:
-                            if start_of_week.date() <= post_date.date() <= end_of_week.date():
-                                summary_en = summarize_text(content, sentence_count=2, max_length=300)
-                                summary_ko = translate_to_korean(summary_en)
-
-                                all_data.append({
-                                    "source": "Azure",
-                                    "title": title,
-                                    "date": date_text,
-                                    "content": content,
-                                    "link": post_link,
-                                    "summary": summary_ko
-                                })
-                            else:
-                                stop_scraping = True
-                                break
-
-                    except Exception as e:
-                        print(f"❌ [Azure] {current_page}페이지 항목 파싱 오류: {e}")
-
-                if stop_scraping:
-                    break
-
-                next_page_num = current_page + 1
-                if next_page_num > last_page_num:
-                    break
-
-                try:
-                    next_li = page.query_selector(f'ul#pagination li:text-is("{next_page_num}")')
-                    if next_li:
-                        next_li.click()
-                        page.wait_for_selector(f'ul#pagination li.active:text-is("{next_page_num}")', timeout=5000)
-                        current_page += 1
-                    else:
-                        break
-                except Exception:
-                    break
-
-        finally:
-            browser.close()
-    azure_count = len([d for d in all_data if d["source"] == "Azure"])
-    print(f"📄 [Azure] 업데이트 수집 완료 - {azure_count}건")
-
-# ---------- AWS 크롤러 ----------
-def crawl_aws_updates():
-    global all_data
-    print("🚀 [AWS] 업데이트 수집 시작")
-    feed_url = "https://aws.amazon.com/new/feed/"
-    feed = feedparser.parse(feed_url)
-    for entry in feed.entries:
-        try:
-            title = entry.title
-            link = entry.link
-            date_parsed = entry.published_parsed
-            post_date = datetime(*date_parsed[:6])
-            if start_of_week.date() <= post_date.date() <= end_of_week.date():
-                cleaned_summary = clean_aws_summary(entry.summary)
-                summary_en = summarize_text(cleaned_summary, sentence_count=1, max_length=150)
-                summary_ko = translate_to_korean(summary_en)
-
-                all_data.append({
-                    "source": "AWS",
-                    "title": title,
-                    "date": post_date.strftime("%Y-%m-%d"),
-                    "content": cleaned_summary,
-                    "link": link,
-                    "summary": summary_ko
-                })
-        except Exception as e:
-            print(f"❌ [AWS] RSS 항목 파싱 오류: {e}")
-    aws_count = len([d for d in all_data if d["source"] == "AWS"])
-    print(f"📄 [AWS] 업데이트 수집 완료 - {aws_count}건")
-
-# ---------- GCP 크롤러 ----------
-def crawl_gcp_updates():
-    global all_data
-    print("🚀 [GCP] 업데이트 수집 시작")
-    rss_url = "https://cloud.google.com/feeds/gcp-release-notes.xml"
-    feed = feedparser.parse(rss_url)
-
-    service_pattern = re.compile(r"([A-Z][a-zA-Z0-9\s\-\(\)]+)\s+(Feature|Announcement)\s+", re.MULTILINE)
-
-    for entry in feed.entries:
-        try:
-            title = entry.title
-            date_text = entry.get('published') or entry.get('updated')
-            if not date_text:
-                continue
-
-            try:
-                post_date = datetime.strptime(date_text, "%a, %d %b %Y %H:%M:%S %Z")
-            except ValueError:
-                post_date = datetime.strptime(date_text[:16], "%Y-%m-%dT%H:%M")
-
-            if not (start_of_week.date() <= post_date.date() <= end_of_week.date()):
-                continue
-
-            raw_content = clean_gcp_summary(entry.summary)
-            matches = list(service_pattern.finditer(raw_content))
-            if not matches:
-                continue
-
-            for i, match in enumerate(matches):
-                service_name = match.group(1).strip()
-                category = match.group(2).strip()
-                start_idx = match.end()
-                end_idx = matches[i + 1].start() if i + 1 < len(matches) else len(raw_content)
-                content = raw_content[start_idx:end_idx].strip()
-
-                if not content:
-                    continue
-
-                if "Security" in service_name or "CVE-" in content:
-                    continue
-
-                summary_en = summarize_long_text(content, max_chunks=3, max_length=150)
-                summary_ko = translate_to_korean(summary_en)
-
-                all_data.append({
-                    "source": "GCP",
-                    "title": f"{service_name} ({category})",
-                    "date": post_date.strftime("%Y-%m-%d"),
-                    "content": content,
-                    "link": "https://cloud.google.com/release-notes",
-                    "summary": summary_ko
-                })
-
-        except Exception as e:
-            print(f"❌ [GCP] RSS 항목 파싱 오류: {e}")
-
-    gcp_count = len([d for d in all_data if d["source"] == "GCP"])
-    print(f"📄 [GCP] 업데이트 수집 완료 - {gcp_count}건")
-
-# ---------- 파이차트 생성 ----------
-def generate_summary_chart():
-    set_korean_font()
-
-    counts = {
-        "Azure": len([d for d in all_data if d["source"] == "Azure"]),
-        "AWS": len([d for d in all_data if d["source"] == "AWS"]),
-        "GCP": len([d for d in all_data if d["source"] == "GCP"]),
-    }
-
-    total = sum(counts.values())
-
-    def make_label(name, count):
-        percent = (count / total) * 100 if total else 0
-        return f"{name}\n{count}건 ({percent:.1f}%)"
-
-    labels = [make_label(name, count) for name, count in counts.items()]
-
-    fig, ax = plt.subplots(figsize=(6, 6))
-    wedges, texts = ax.pie(counts.values(), startangle=90)
-
-    bbox_props = dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=0.5)
-    kw = dict(arrowprops=dict(arrowstyle="-"), bbox=bbox_props, zorder=0, va="center")
-
-    for i, p in enumerate(wedges):
-        ang = (p.theta2 - p.theta1) / 2. + p.theta1
-        y = np.sin(np.deg2rad(ang))
-        x = np.cos(np.deg2rad(ang))
-        horizontalalignment = {-1: "right", 1: "left"}[int(np.sign(x))]
-        ax.annotate(labels[i], xy=(x, y), xytext=(1.2 * np.sign(x), 1.2 * y),
-                    horizontalalignment=horizontalalignment, **kw)
-
-    ax.set_title(f"이번 주 Cloud 업데이트 요약", fontsize=14)
-
-    buf = BytesIO()
-    plt.savefig(buf, format="png", bbox_inches="tight")
-    plt.close(fig)
-    buf.seek(0)
-    img_base64 = base64.b64encode(buf.read()).decode("utf-8")
-    return f"data:image/png;base64,{img_base64}"
-
-# ---------- 파일 저장 ----------
-def save_files():
-    os.makedirs("output", exist_ok=True)
-    json_filename = f"output/cloud_updates_week_{today.strftime('%Y-%m-%d')}.json"
-    with open(json_filename, "w", encoding="utf-8") as f:
-        json.dump(all_data, f, ensure_ascii=False, indent=2)
-
-    print(f"\n✅ 업데이트 데이터 저장 완료: {json_filename}")
-    return json_filename
-
-# ---------- 이메일 발송 ----------
-def send_email():
-    if not all_data:
-        print("ℹ️ 이번 주 업데이트가 없습니다. 메일 발송하지 않음.")
-        return
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"[Cloud Updates] 이번 주 소식지 ({today.strftime('%Y-%m-%d')})"
-    msg["From"] = SENDER
-    msg["To"] = ", ".join(RECEIVERS)
-
-    banner_base64 = get_banner_base64()
-    chart_base64 = generate_summary_chart()
-
-    html_content = f"""
-    <h2>📢 클라우드 주간 업데이트 ({today.strftime('%Y-%m-%d')})</h2>
-    <img src="{banner_base64}" alt="배너" style="width: 100%; max-width: 800px; margin-bottom: 20px;">
-    <img src="{chart_base64}" alt="Cloud Update Summary Chart" style="max-width: 600px; margin-bottom: 20px;">
-    """
-
-    for provider in ["Azure", "AWS", "GCP"]:
-        provider_items = [item for item in all_data if item["source"] == provider]
-        if provider_items:
-            icon = "🔷" if provider == "Azure" else ("🟧" if provider == "AWS" else "🟩")
-            html_content += f"<h3>{icon} {provider} 업데이트</h3><ul>"
-            for item in provider_items:
-                extra_note = f" (날짜: {item['date']})" if provider == "GCP" else ""
-                html_content += (
-                    f"<li style='margin-bottom: 20px;'>"
-                    f"<strong>{item['date']}</strong> - <strong>{item['title']}</strong><br>"
-                    f"{item['summary']} <a href='{item['link']}' style='color: blue;'>자세히 보기{extra_note}</a></li>"
-                )
-            html_content += "</ul>"
-
-    msg.attach(MIMEText(html_content, "html"))
-    send_with_retry(msg)
-
-# ---------- 메일 재시도 ----------
-def send_with_retry(msg, retries=3):
-    for attempt in range(retries):
-        try:
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SENDER, SENDER_PASSWORD)
-                server.sendmail(SENDER, RECEIVERS, msg.as_string())
-            print("✅ 뉴스레터 메일 발송 완료")
-            return
-        except Exception as e:
-            print(f"❌ 메일 발송 실패 (시도 {attempt+1}): {e}")
-            time.sleep(3)
-    print("❗️ 모든 메일 발송 재시도 실패")
-
-# ---------- 실행 ----------
-if __name__ == "__main__":
-    crawl_azure_updates()
-    crawl_gcp_updates()
-    crawl_aws_updates()
-    save_files()
-    send_email()
-
-===========
-위 파이썬을 분석 후 서버에 uv로 구성하는 방법을 알려주세요. 설명은 마크다운 형태로 작성하고 따라할수 있는 매뉴얼 수준으로 부탁해요.
+# Docker를 이용한 클라우드 업데이트 스크래퍼 배포
+
+이 가이드는 앞서 설명한 Python 스크립트를 Docker 컨테이너 환경에서 실행하는 방법을 설명합니다. Docker를 사용하면 로컬 개발 환경, 테스트 서버, 운영 서버 등 어디서든 동일한 환경에서 스크립트를 실행할 수 있으며, 의존성 관리가 용이해집니다.
+
+**사전 요구 사항:**
+
+* Docker가 서버에 설치되어 있어야 합니다. (Docker 설치 가이드 참고)
+* 프로젝트 디렉토리에 `scraper.py`, `banner.png`, `requirements.txt` 파일이 준비되어 있어야 합니다. (`.env` 파일은 이미지에 직접 복사하지 않고 실행 시 환경 변수로 주입합니다.)
+
+---
+
+## 1. Dockerfile 작성
+
+프로젝트 루트 디렉토리( `scraper.py` 등이 있는 곳)에 `Dockerfile`이라는 이름의 파일을 생성하고 아래 내용을 작성합니다.
+
+```dockerfile
+# Dockerfile
+
+# 1. 베이스 이미지 선택 (Python 3.11 슬림 버전 사용)
+FROM python:3.11-slim
+
+# 2. 작업 디렉토리 설정
+WORKDIR /app
+
+# 3. 시스템 환경 설정 및 필수 패키지 설치
+#    - FONTS_NANUM: 한글 폰트 설치 (matplotlib 차트용)
+#    - CURL: uv 설치용
+#    - build-essential: 일부 파이썬 패키지 빌드에 필요할 수 있음 (uv가 휠을 잘 처리하면 불필요할 수도 있음)
+#    - 불필요한 apt 캐시 삭제하여 이미지 크기 줄이기
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        fonts-nanum* \
+        curl \
+        build-essential \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 4. uv 설치
+RUN curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# 5. 애플리케이션 파일 복사
+#    - requirements.txt 를 먼저 복사하여 의존성 캐싱 활용
+COPY requirements.txt .
+COPY scraper.py .
+COPY banner.png .
+
+# 6. Python 의존성 설치 (uv 사용, --no-cache 로 이미지 크기 최적화)
+RUN uv pip install --no-cache-dir -r requirements.txt
+
+# 7. Playwright 브라우저 설치 (uv run 사용)
+RUN uv run playwright install chromium
+
+# 8. Matplotlib 폰트 캐시 재생성 (설치된 한글 폰트 인식)
+RUN uv run python -c "import matplotlib.font_manager; matplotlib.font_manager._load_fontmanager(try_read_cache=False)"
+
+# 9. 컨테이너 실행 시 실행될 명령어 설정
+#    - 환경 변수는 docker run 시점에 주입
+CMD ["uv", "run", "python", "scraper.py"]
+
+Dockerfile 설명:
+ * FROM python:3.11-slim: 파이썬 3.11 슬림 버전을 기반으로 이미지를 만듭니다.
+ * WORKDIR /app: 컨테이너 내 작업 디렉토리를 /app으로 설정합니다. 이후 명령어는 이 디렉토리 기준으로 실행됩니다.
+ * RUN apt-get ...: 데비안/우분투 패키지 관리자인 apt-get을 이용해 나눔 폰트, curl 등을 설치합니다. --no-install-recommends와 apt-get clean 등으로 이미지 크기를 최적화합니다.
+ * RUN curl ... | sh: uv 설치 스크립트를 실행합니다.
+ * ENV PATH=...: 설치된 uv를 시스템 경로에 추가합니다.
+ * COPY ... .: 로컬 프로젝트 파일들을 컨테이너의 /app 디렉토리로 복사합니다.
+ * RUN uv pip install ...: uv를 이용해 requirements.txt에 명시된 파이썬 패키지들을 설치합니다. --no-cache-dir 옵션으로 불필요한 캐시를 남기지 않아 이미지 크기를 줄입니다.
+ * RUN uv run playwright install chromium: 컨테이너 내 환경에서 Playwright의 크로미움 브라우저를 설치합니다.
+ * RUN uv run python -c "...": 컨테이너 빌드 시점에 matplotlib 폰트 캐시를 갱신하여 나눔 폰트를 인식하도록 합니다.
+ * CMD ["uv", "run", "python", "scraper.py"]: 컨테이너가 시작될 때 기본으로 실행될 명령어를 지정합니다.
+2. Docker 이미지 빌드
+Dockerfile이 있는 디렉토리에서 아래 명령어를 실행하여 Docker 이미지를 빌드합니다. -t 옵션으로 이미지 이름과 태그를 지정합니다 (예: cloud-scraper:latest).
+docker build -t cloud-scraper:latest .
+
+빌드가 완료되면 docker images 명령어로 생성된 이미지를 확인할 수 있습니다.
+3. Docker 컨테이너 실행
+빌드된 이미지를 사용하여 컨테이너를 실행합니다. 이때, .env 파일에 있던 환경 변수들을 docker run 명령어의 -e 옵션을 통해 주입해야 합니다. 또한, 스크립트가 생성하는 JSON 파일을 호스트 머신에 저장하기 위해 볼륨 마운트(-v)를 사용합니다.
+# docker run 명령어 (한 줄로 실행하거나 '\' 사용하여 여러 줄로 작성)
+docker run --rm \
+  -e SMTP_SERVER="smtp.example.com" \
+  -e SMTP_PORT="587" \
+  -e SENDER="your_email@example.com" \
+  -e EMAIL_PASSWORD="your_very_secret_email_password_or_app_password" \
+  -e RECEIVERS="recipient1@example.com,recipient2@example.com" \
+  -v "$(pwd)/output:/app/output" \
+  cloud-scraper:latest
+
+docker run 옵션 설명:
+ * --rm: 컨테이너 실행이 완료되면 자동으로 컨테이너를 삭제합니다. 일회성 작업에 유용합니다.
+ * -e VARIABLE_NAME="value": 컨테이너 내부에 환경 변수를 설정합니다. .env 파일에 있던 각 변수를 -e 옵션으로 전달해야 합니다. 보안에 유의하세요. (비밀번호 등 민감 정보)
+ * -v "$(pwd)/output:/app/output": 호스트 머신의 현재 디렉토리 아래 output 폴더와 컨테이너 내부의 /app/output 폴더를 연결(마운트)합니다. 이렇게 하면 스크립트가 컨테이너 내 /app/output에 저장하는 JSON 파일이 호스트의 output 폴더에 실제로 저장되어 컨테이너가 사라져도 결과가 유지됩니다.
+ * cloud-scraper:latest: 실행할 Docker 이미지의 이름과 태그입니다.
+중요: 위 명령어의 환경 변수 값들(smtp.example.com, your_email@example.com 등)은 실제 값으로 반드시 변경해야 합니다.
+4. Cron을 이용한 Docker 컨테이너 자동 실행
+호스트 서버의 cron을 사용하여 주기적으로 docker run 명령어를 실행하도록 설정할 수 있습니다.
+crontab -e 명령으로 crontab 편집기를 열고 아래와 같이 등록합니다. (예: 매주 월요일 오전 7시에 실행)
+# 예시: 매주 월요일 오전 7시에 Docker 컨테이너 실행
+# 실제 환경 변수 값으로 변경해야 합니다.
+# $(pwd) 대신 output 디렉토리의 절대 경로를 사용하는 것이 더 안정적일 수 있습니다.
+
+0 7 * * 1 /usr/bin/docker run --rm -e SMTP_SERVER="smtp.example.com" -e SMTP_PORT="587" -e SENDER="your_email@example.com" -e EMAIL_PASSWORD="your_secret_password" -e RECEIVERS="recipient1@example.com,recipient2@example.com" -v /path/to/your/project/output:/app/output cloud-scraper:latest >> /path/to/your/project/cron_docker.log 2>&1
+
+Cron 항목 설명:
+ * 0 7 * * 1: 실행 주기 (매주 월요일 오전 7시)
+ * /usr/bin/docker run ...: docker run 명령어를 사용하여 컨테이너를 실행합니다. docker 명령어의 절대 경로를 사용하는 것이 좋습니다 (which docker로 확인).
+ * -e ...: 환경 변수를 직접 명시합니다.
+ * -v /path/to/your/project/output:/app/output: 호스트의 output 디렉토리 절대 경로와 컨테이너의 /app/output을 연결합니다. $(pwd) 대신 절대 경로를 사용하는 것이 cron 환경에서 더 안전합니다.
+ * cloud-scraper:latest: 실행할 이미지 이름
+ * >> /path/to/your/project/cron_docker.log 2>&1: docker run 명령어의 실행 결과 및 오류를 로그 파일에 저장합니다.
+5. 장점 및 고려사항
+ * 환경 일관성: Docker를 사용하면 개발, 테스트, 운영 환경 모두 동일한 환경에서 스크립트를 실행할 수 있습니다.
+ * 쉬운 배포: Docker 이미지만 있으면 어디든 쉽게 배포할 수 있습니다.
+ * 의존성 격리: 호스트 시스템에 파이썬 버전이나 라이브러리, 폰트 등을 직접 설치할 필요가 없습니다.
+ * 환경 변수 관리: -e 옵션으로 환경 변수를 주입하는 방식은 .env 파일을 직접 관리하는 것보다 유연하지만, 명령어에 민감 정보가 노출될 수 있습니다. 더 안전한 방법으로 Docker Secrets나 다른 설정 관리 도구를 사용하는 것을 고려할 수 있습니다. (고급)
+ * 이미지 크기: Dockerfile 최적화(멀티 스테이지 빌드 등)를 통해 이미지 크기를 더 줄일 수 있습니다.
+이제 Docker를 사용하여 클라우드 업데이트 스크래퍼를 컨테이너 환경에서 실행하고, cron으로 자동화할 수 있습니다.
+
