@@ -1,0 +1,1 @@
+* https://docs.kakaocloud.com/tutorial/dev-tools/gitops-pipeline
