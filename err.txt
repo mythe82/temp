@@ -1,65 +1,32 @@
-Kubespray와 Docker Ansible을 이용한 Kubernetes 클러스터 설치 가이드
-Kubespray는 Ansible 플레이북을 사용하여 Kubernetes 클러스터를 배포하고 관리하는 오픈소스 도구입니다. 다양한 클라우드 환경 및 온프레미스 환경에서 Kubernetes를 유연하게 설치할 수 있도록 지원합니다. 이 가이드에서는 Docker 컨테이너 버전의 Ansible을 사용하여 Kubespray로 Kubernetes 클러스터를 설치하는 방법을 안내합니다.
-1. 사전 준비 사항
-Kubernetes 클러스터를 설치하기 전에 다음 사항들을 준비해야 합니다.
- * 서버: Kubernetes 마스터 및 워커 노드로 사용할 서버들을 준비합니다. 각 서버는 다음 요구 사항을 충족하는 것이 좋습니다.
-   * 지원되는 운영체제 (예: Ubuntu, CentOS 등 Kubespray에서 지원하는 OS)
-   * 최소 2 CPU, 4GB RAM (실제 운영 환경에서는 더 높은 사양 권장)
-   * 각 노드 간 네트워크 연결 및 인터넷 연결
-   * 각 노드에 SSH 접속 가능 (Key-based authentication 권장)
-   * sudo 권한을 가진 사용자 계정
- * Ansible 실행 환경: Ansible 명령을 실행할 머신이 필요합니다. 이 가이드에서는 Docker 컨테이너를 사용합니다.
- * Python: Kubespray는 Python 기반이므로, Ansible을 실행하는 환경에 Python이 설치되어 있어야 합니다 (Docker 컨테이너 사용 시 이미지에 포함).
- * SSH 키: Ansible 컨트롤 노드에서 각 Kubernetes 노드로 암호 없이 SSH 접속이 가능하도록 SSH 키를 설정합니다.
-2. Ansible Docker 컨테이너 환경 준비
-Docker Hub에서 공식 Ansible 이미지를 사용하거나, Kubespray에 필요한 종속성이 포함된 이미지를 직접 빌드할 수 있습니다. Kubespray 공식 문서에서는 quay.io/kubespray/kubespray 이미지를 사용하는 것을 권장하기도 합니다.
-Kubespray Docker 이미지 사용 방법:
-일반적으로 Kubespray 저장소 내에 Dockerfile이 포함되어 있어, 이를 기반으로 이미지를 빌드하거나 이미 빌드된 이미지를 사용할 수 있습니다.
- * Kubespray 저장소 복제:
-   git clone https://github.com/kubernetes-sigs/kubespray.git
+
+* Kubespray 저장소 복제:
+git clone https://github.com/kubernetes-sigs/kubespray.git
 cd kubespray
 
- * Docker 이미지 가져오기 또는 빌드:
-   최신 Kubespray 릴리스 버전에 맞는 Docker 이미지를 사용하거나 직접 빌드합니다. 예를 들어, quay.io/kubespray/kubespray:<버전> 형태의 이미지를 사용할 수 있습니다.
- * Docker 컨테이너 실행:
-   Ansible 플레이북을 실행할 Docker 컨테이너를 실행합니다. 이때, 로컬의 Kubespray 설정 파일, SSH 키 등을 컨테이너 내부로 마운트해야 합니다.
-   docker run --rm -it \
-  -v $(pwd)/inventory/mycluster:/inventory \
-  -v $(pwd)/contrib/ansible-docker/ansible.cfg:/ansible.cfg \
+cp -rfp /root/kubespray/inventory/sample/* /root/kubespray/inventory/mycluster/
+
+* Docker 이미지 가져오기 또는 빌드:
+docker run --rm -it \
+  -v /root/kubespray/inventory/mycluster:/inventory \
+  -v /root/kubespray/contrib/ansible-docker/ansible.cfg:/ansible.cfg \
   -v ~/.ssh/id_rsa:/root/.ssh/id_rsa \
-  quay.io/kubespray/kubespray:<KUBESPRAY_VERSION> bash
+  quay.io/kubespray/kubespray:v2.25.0 bash
 
-   * $(pwd)/inventory/mycluster는 사용자가 생성할 인벤토리 파일 경로입니다.
-   * ~/.ssh/id_rsa는 Ansible 컨트롤 노드에서 Kubernetes 노드로 접속하기 위한 SSH 개인 키 경로입니다. 실제 환경에 맞게 수정해야 합니다.
-   * <KUBESPRAY_VERSION>에는 사용하려는 Kubespray 버전을 명시합니다. (예: v2.25.0)
-   컨테이너 실행 후, 컨테이너 내부에서 이후 단계를 진행합니다.
 3. Kubespray 설정
- * 인벤토리 파일 생성 및 구성:
-   Kubespray는 Ansible 인벤토리 파일을 사용하여 클러스터 노드 정보 및 설정을 정의합니다.
-   * 샘플 인벤토리 복사:
-     컨테이너 내부에서 다음 명령어를 실행합니다. 만약 로컬에서 작업 후 컨테이너로 복사할 예정이라면 로컬에서 진행합니다.
-     # 컨테이너 내부
-cp -rfp /kubespray/inventory/sample /inventory/mycluster
+vi /inventory/inventory.ini
 
-     또는 로컬에서 작업하는 경우:
-     cp -rfp inventory/sample inventory/mycluster
-
-   * 인벤토리 파일 수정 (inventory/mycluster/inventory.ini):
-     inventory.ini 파일을 열어 클러스터 노드의 IP 주소 및 호스트 이름을 설정합니다.
-     [all]
-master1 ansible_host=192.168.1.10 ip=192.168.1.10
-node1 ansible_host=192.168.1.11 ip=192.168.1.11
-node2 ansible_host=192.168.1.12 ip=192.168.1.12
+[all]
+k8s-ctp01 ansible_host=k8s-ctp01  ip=10.142.0.6
+k8s-wkn01 ansible_host=k8s-wkn01  ip=10.142.0.7
 
 [kube_control_plane]
-master1
+k8s-ctp01
 
 [etcd]
-master1
+k8s-ctp01
 
 [kube_node]
-node1
-node2
+k8s-wkn01
 
 [calico_rr]
 
@@ -68,57 +35,293 @@ kube_control_plane
 kube_node
 calico_rr
 
-     * ansible_host: Ansible이 접속할 노드의 IP 주소 또는 호스트 이름입니다.
-     * ip: 노드의 내부 IP 주소입니다.
-     * 필요에 따라 etcd, kube_control_plane, kube_node 그룹에 노드를 할당합니다.
-   * 클러스터 변수 설정 (선택 사항):
-     inventory/mycluster/group_vars/k8s_cluster/k8s-cluster.yml 파일을 수정하여 Kubernetes 버전, 네트워크 플러그인 (예: Calico, Flannel), DNS 설정 등 다양한 클러스터 설정을 변경할 수 있습니다.
-     예를 들어, 특정 Kubernetes 버전을 설치하려면:
-     kube_version: v1.28.3
-
-     네트워크 플러그인을 Calico로 설정하려면 (기본값 중 하나):
-     kube_network_plugin: calico
-
 4. Kubernetes 클러스터 배포
-Docker 컨테이너 내부에서 Ansible 플레이북을 실행하여 Kubernetes 클러스터를 배포합니다.
- * 종속성 설치 (필요한 경우):
-   Kubespray는 특정 Python 라이브러리를 필요로 합니다. 일반적으로 Kubespray Docker 이미지에는 필요한 종속성이 포함되어 있지만, 만약 직접 구성한 환경이라면 설치해야 할 수 있습니다.
-   # 컨테이너 내부 (필요시)
-pip install -r /kubespray/requirements.txt
-
  * Ansible 플레이북 실행:
    다음 명령어를 사용하여 클러스터 배포를 시작합니다.
    # 컨테이너 내부
-ansible-playbook -i /inventory/mycluster/inventory.ini --become --become-user=root /kubespray/cluster.yml
+ansible-playbook -i /inventory/inventory.ini --become --become-user=root /kubespray/cluster.yml
+=================
+TASK [kubernetes/preinstall : Make sure sysctl file path folder exists] ***************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:42 +0000 (0:00:00.408)       0:00:44.839 *********** 
 
-   * -i /inventory/mycluster/inventory.ini: 사용할 인벤토리 파일을 지정합니다.
-   * --become --become-user=root: 권한 상승(sudo)을 사용하도록 설정합니다. 일부 시스템에서는 --become-method=su 와 같은 추가 옵션이 필요할 수 있습니다.
-   * /kubespray/cluster.yml: Kubespray의 메인 플레이북 파일입니다.
-   설치 과정은 클러스터의 크기와 네트워크 속도에 따라 몇 분에서 몇 시간까지 소요될 수 있습니다.
-5. 설치 확인
-클러스터 배포가 완료되면, 마스터 노드에서 kubectl 명령어를 사용하여 클러스터 상태를 확인할 수 있습니다.
- * 마스터 노드 접속:
-   설치가 완료된 마스터 노드에 SSH로 접속합니다.
- * kubectl 설정:
-   일반적으로 Kubespray는 마스터 노드의 관리자 계정 홈 디렉터리 아래 .kube/config 파일을 생성합니다.
-   mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
+TASK [kubernetes/preinstall : Enable ip forwarding] ***********************************************************************************************************************************************************************************************
+ok: [k8s-wkn01]
+ok: [k8s-ctp01]
+Tuesday 20 May 2025  04:59:43 +0000 (0:00:00.538)       0:00:45.377 *********** 
+Tuesday 20 May 2025  04:59:43 +0000 (0:00:00.114)       0:00:45.492 *********** 
 
- * 클러스터 상태 확인:
-   kubectl get nodes
-kubectl get pods --all-namespaces
+TASK [kubernetes/preinstall : Check if we need to set fs.may_detach_mounts] ***********************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:43 +0000 (0:00:00.396)       0:00:45.888 *********** 
+Tuesday 20 May 2025  04:59:43 +0000 (0:00:00.119)       0:00:46.008 *********** 
 
-   모든 노드가 Ready 상태로 표시되고, 시스템 파드들이 정상적으로 실행 중인지 확인합니다.
-6. 클러스터 관리
-Kubespray는 클러스터 설치 외에도 다음과 같은 관리 작업을 지원합니다.
- * 노드 추가/제거: 인벤토리 파일을 수정한 후 scale.yml 플레이북을 실행합니다.
- * 클러스터 업그레이드: upgrade-cluster.yml 플레이북을 사용합니다.
- * 클러스터 초기화/삭제: reset.yml 플레이북을 사용합니다. (주의: 모든 데이터가 삭제됩니다.)
-각 작업에 대한 자세한 내용은 Kubespray 공식 문서를 참조하십시오.
-7. 추가 정보 및 팁
- * 공식 문서 참조: 항상 최신 정보와 상세한 설정 옵션은 Kubespray 공식 GitHub 저장소 및 관련 문서를 참조하는 것이 좋습니다.
- * 문제 해결: 설치 중 문제가 발생하면 Ansible 출력 로그를 자세히 확인하고, Kubespray GitHub 이슈 트래커에서 유사한 문제를 검색해 보십시오.
- * 방화벽 설정: 각 노드의 방화벽에서 Kubernetes 구성 요소들이 사용하는 포트(예: API 서버 포트, etcd 포트, 노드 포트 등)가 열려 있는지 확인해야 합니다. Kubespray는 종종 iptables 규칙을 자동으로 설정하지만, 별도의 방화벽 소프트웨어를 사용하는 경우 수동 설정이 필요할 수 있습니다.
- * SELinux/AppArmor: SELinux 또는 AppArmor가 활성화된 경우, Kubespray 실행에 영향을 줄 수 있습니다. 필요에 따라 설정을 조정하거나 일시적으로 비활성화하는 것을 고려할 수 있습니다 (보안 상 권장되지는 않음).
-이 가이드가 Kubespray와 Docker Ansible을 사용하여 Kubernetes 클러스터를 성공적으로 구축하는 데 도움이 되기를 바랍니다. 환경에 따라 세부 설정이 달라질 수 있으므로, 공식 문서를 함께 참고하며 진행하는 것이 중요합니다.
+TASK [kubernetes/preinstall : Ensure kubelet expected parameters are set] *************************************************************************************************************************************************************************
+ok: [k8s-ctp01] => (item={'name': 'kernel.keys.root_maxbytes', 'value': 25000000})
+ok: [k8s-wkn01] => (item={'name': 'kernel.keys.root_maxbytes', 'value': 25000000})
+ok: [k8s-ctp01] => (item={'name': 'kernel.keys.root_maxkeys', 'value': 1000000})
+ok: [k8s-wkn01] => (item={'name': 'kernel.keys.root_maxkeys', 'value': 1000000})
+ok: [k8s-ctp01] => (item={'name': 'kernel.panic', 'value': 10})
+ok: [k8s-wkn01] => (item={'name': 'kernel.panic', 'value': 10})
+ok: [k8s-ctp01] => (item={'name': 'kernel.panic_on_oops', 'value': 1})
+ok: [k8s-wkn01] => (item={'name': 'kernel.panic_on_oops', 'value': 1})
+ok: [k8s-ctp01] => (item={'name': 'vm.overcommit_memory', 'value': 1})
+ok: [k8s-wkn01] => (item={'name': 'vm.overcommit_memory', 'value': 1})
+ok: [k8s-ctp01] => (item={'name': 'vm.panic_on_oom', 'value': 0})
+ok: [k8s-wkn01] => (item={'name': 'vm.panic_on_oom', 'value': 0})
+Tuesday 20 May 2025  04:59:45 +0000 (0:00:01.894)       0:00:47.903 *********** 
+
+TASK [kubernetes/preinstall : Check dummy module] *************************************************************************************************************************************************************************************************
+ok: [k8s-wkn01]
+ok: [k8s-ctp01]
+Tuesday 20 May 2025  04:59:46 +0000 (0:00:00.545)       0:00:48.448 *********** 
+Tuesday 20 May 2025  04:59:46 +0000 (0:00:00.065)       0:00:48.514 *********** 
+
+TASK [kubernetes/preinstall : Disable fapolicyd service] ******************************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:01.045)       0:00:49.560 *********** 
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:00.068)       0:00:49.629 *********** 
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:00.062)       0:00:49.691 *********** 
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:00.076)       0:00:49.767 *********** 
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:00.066)       0:00:49.834 *********** 
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:00.069)       0:00:49.904 *********** 
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:00.064)       0:00:49.968 *********** 
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:00.066)       0:00:50.035 *********** 
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:00.063)       0:00:50.099 *********** 
+Tuesday 20 May 2025  04:59:47 +0000 (0:00:00.067)       0:00:50.167 *********** 
+
+TASK [kubernetes/preinstall : Hosts | create hosts list from inventory] ***************************************************************************************************************************************************************************
+ok: [k8s-ctp01 -> localhost]
+Tuesday 20 May 2025  04:59:48 +0000 (0:00:00.126)       0:00:50.294 *********** 
+
+TASK [kubernetes/preinstall : Hosts | populate inventory into hosts file] *************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:48 +0000 (0:00:00.540)       0:00:50.834 *********** 
+Tuesday 20 May 2025  04:59:48 +0000 (0:00:00.089)       0:00:50.924 *********** 
+
+TASK [kubernetes/preinstall : Hosts | Retrieve hosts file content] ********************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:49 +0000 (0:00:00.398)       0:00:51.322 *********** 
+
+TASK [kubernetes/preinstall : Hosts | Extract existing entries for localhost from hosts file] *****************************************************************************************************************************************************
+ok: [k8s-ctp01] => (item=127.0.0.1 localhost localhost.localdomain)
+ok: [k8s-wkn01] => (item=127.0.0.1 localhost localhost.localdomain)
+ok: [k8s-ctp01] => (item=::1 localhost6 ip6-localhost localhost6.localdomain ip6-loopback)
+ok: [k8s-wkn01] => (item=::1 localhost6 ip6-localhost localhost6.localdomain ip6-loopback)
+Tuesday 20 May 2025  04:59:49 +0000 (0:00:00.394)       0:00:51.717 *********** 
+
+TASK [kubernetes/preinstall : Hosts | Update target hosts file entries dict with required entries] ************************************************************************************************************************************************
+ok: [k8s-ctp01] => (item={'key': '127.0.0.1', 'value': {'expected': ['localhost', 'localhost.localdomain']}})
+ok: [k8s-ctp01] => (item={'key': '::1', 'value': {'expected': ['localhost6', 'localhost6.localdomain'], 'unexpected': ['localhost', 'localhost.localdomain']}})
+ok: [k8s-wkn01] => (item={'key': '127.0.0.1', 'value': {'expected': ['localhost', 'localhost.localdomain']}})
+ok: [k8s-wkn01] => (item={'key': '::1', 'value': {'expected': ['localhost6', 'localhost6.localdomain'], 'unexpected': ['localhost', 'localhost.localdomain']}})
+Tuesday 20 May 2025  04:59:49 +0000 (0:00:00.202)       0:00:51.919 *********** 
+
+TASK [kubernetes/preinstall : Hosts | Update (if necessary) hosts file] ***************************************************************************************************************************************************************************
+changed: [k8s-ctp01] => (item={'key': '127.0.0.1', 'value': ['localhost.localdomain', 'localhost']})
+changed: [k8s-wkn01] => (item={'key': '127.0.0.1', 'value': ['localhost.localdomain', 'localhost']})
+changed: [k8s-ctp01] => (item={'key': '::1', 'value': ['localhost6.localdomain', 'ip6-loopback', 'localhost6', 'ip6-localhost']})
+changed: [k8s-wkn01] => (item={'key': '::1', 'value': ['localhost6.localdomain', 'ip6-loopback', 'localhost6', 'ip6-localhost']})
+Tuesday 20 May 2025  04:59:50 +0000 (0:00:00.945)       0:00:52.865 *********** 
+
+TASK [kubernetes/preinstall : Update facts] *******************************************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:51 +0000 (0:00:00.713)       0:00:53.579 *********** 
+
+TASK [kubernetes/preinstall : Configure dhclient to supersede search/domain/nameservers] **********************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:51 +0000 (0:00:00.434)       0:00:54.013 *********** 
+
+TASK [kubernetes/preinstall : Configure dhclient hooks for resolv.conf (non-RH)] ******************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:52 +0000 (0:00:00.786)       0:00:54.801 *********** 
+Tuesday 20 May 2025  04:59:52 +0000 (0:00:00.095)       0:00:54.896 *********** 
+Tuesday 20 May 2025  04:59:52 +0000 (0:00:00.066)       0:00:54.963 *********** 
+Tuesday 20 May 2025  04:59:52 +0000 (0:00:00.063)       0:00:55.027 *********** 
+Tuesday 20 May 2025  04:59:52 +0000 (0:00:00.008)       0:00:55.035 *********** 
+Tuesday 20 May 2025  04:59:52 +0000 (0:00:00.009)       0:00:55.045 *********** 
+
+TASK [kubernetes/preinstall : Check if we are running inside a Azure VM] **************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:53 +0000 (0:00:00.452)       0:00:55.497 *********** 
+Tuesday 20 May 2025  04:59:53 +0000 (0:00:00.071)       0:00:55.569 *********** 
+Tuesday 20 May 2025  04:59:53 +0000 (0:00:00.067)       0:00:55.637 *********** 
+Tuesday 20 May 2025  04:59:53 +0000 (0:00:00.064)       0:00:55.701 *********** 
+Tuesday 20 May 2025  04:59:53 +0000 (0:00:00.070)       0:00:55.772 *********** 
+Tuesday 20 May 2025  04:59:53 +0000 (0:00:00.067)       0:00:55.839 *********** 
+Tuesday 20 May 2025  04:59:53 +0000 (0:00:00.069)       0:00:55.909 *********** 
+Tuesday 20 May 2025  04:59:53 +0000 (0:00:00.066)       0:00:55.976 *********** 
+
+TASK [Run calico checks] **************************************************************************************************************************************************************************************************************************
+Tuesday 20 May 2025  04:59:54 +0000 (0:00:00.333)       0:00:56.310 *********** 
+
+TASK [network_plugin/calico : Stop if legacy encapsulation variables are detected (ipip)] *********************************************************************************************************************************************************
+ok: [k8s-ctp01] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+Tuesday 20 May 2025  04:59:54 +0000 (0:00:00.107)       0:00:56.418 *********** 
+
+TASK [network_plugin/calico : Stop if legacy encapsulation variables are detected (ipip_mode)] ****************************************************************************************************************************************************
+ok: [k8s-ctp01] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+Tuesday 20 May 2025  04:59:54 +0000 (0:00:00.098)       0:00:56.517 *********** 
+
+TASK [network_plugin/calico : Stop if legacy encapsulation variables are detected (calcio_ipam_autoallocateblocks)] *******************************************************************************************************************************
+ok: [k8s-ctp01] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+Tuesday 20 May 2025  04:59:54 +0000 (0:00:00.098)       0:00:56.615 *********** 
+Tuesday 20 May 2025  04:59:54 +0000 (0:00:00.059)       0:00:56.674 *********** 
+
+TASK [network_plugin/calico : Stop if supported Calico versions] **********************************************************************************************************************************************************************************
+ok: [k8s-ctp01] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+Tuesday 20 May 2025  04:59:54 +0000 (0:00:00.101)       0:00:56.776 *********** 
+
+TASK [network_plugin/calico : Check if calicoctl.sh exists] ***************************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+Tuesday 20 May 2025  04:59:54 +0000 (0:00:00.334)       0:00:57.110 *********** 
+Tuesday 20 May 2025  04:59:54 +0000 (0:00:00.065)       0:00:57.175 *********** 
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.043)       0:00:57.219 *********** 
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.044)       0:00:57.263 *********** 
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.078)       0:00:57.342 *********** 
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.042)       0:00:57.384 *********** 
+
+TASK [network_plugin/calico : Check vars defined correctly] ***************************************************************************************************************************************************************************************
+ok: [k8s-ctp01] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.100)       0:00:57.485 *********** 
+
+TASK [network_plugin/calico : Check calico network backend defined correctly] *********************************************************************************************************************************************************************
+ok: [k8s-ctp01] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.098)       0:00:57.584 *********** 
+
+TASK [network_plugin/calico : Check ipip and vxlan mode defined correctly] ************************************************************************************************************************************************************************
+ok: [k8s-ctp01] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.102)       0:00:57.687 *********** 
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.044)       0:00:57.731 *********** 
+
+TASK [network_plugin/calico : Check ipip and vxlan mode if simultaneously enabled] ****************************************************************************************************************************************************************
+ok: [k8s-ctp01] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.103)       0:00:57.834 *********** 
+
+TASK [network_plugin/calico : Get Calico default-pool configuration] ******************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+Tuesday 20 May 2025  04:59:55 +0000 (0:00:00.344)       0:00:58.178 *********** 
+Tuesday 20 May 2025  04:59:56 +0000 (0:00:00.047)       0:00:58.226 *********** 
+Tuesday 20 May 2025  04:59:56 +0000 (0:00:00.060)       0:00:58.286 *********** 
+Tuesday 20 May 2025  04:59:56 +0000 (0:00:00.048)       0:00:58.335 *********** 
+Tuesday 20 May 2025  04:59:56 +0000 (0:00:00.045)       0:00:58.380 *********** 
+Tuesday 20 May 2025  04:59:56 +0000 (0:00:00.060)       0:00:58.441 *********** 
+
+TASK [container-engine/validate-container-engine : Validate-container-engine | check if fedora coreos] ********************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:56 +0000 (0:00:00.399)       0:00:58.840 *********** 
+
+TASK [container-engine/validate-container-engine : Validate-container-engine | set is_ostree] *****************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:56 +0000 (0:00:00.151)       0:00:58.992 *********** 
+
+TASK [container-engine/validate-container-engine : Ensure kubelet systemd unit exists] ************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  04:59:57 +0000 (0:00:00.406)       0:00:59.399 *********** 
+
+TASK [container-engine/validate-container-engine : Populate service facts] ************************************************************************************************************************************************************************
+ok: [k8s-wkn01]
+ok: [k8s-ctp01]
+Tuesday 20 May 2025  05:00:02 +0000 (0:00:05.077)       0:01:04.476 *********** 
+
+TASK [container-engine/validate-container-engine : Check if containerd is installed] **************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  05:00:03 +0000 (0:00:00.880)       0:01:05.357 *********** 
+
+TASK [container-engine/validate-container-engine : Check if docker is installed] ******************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  05:00:03 +0000 (0:00:00.494)       0:01:05.851 *********** 
+
+TASK [container-engine/validate-container-engine : Check if crio is installed] ********************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+ok: [k8s-wkn01]
+Tuesday 20 May 2025  05:00:04 +0000 (0:00:00.478)       0:01:06.329 *********** 
+Tuesday 20 May 2025  05:00:04 +0000 (0:00:00.086)       0:01:06.416 *********** 
+Tuesday 20 May 2025  05:00:04 +0000 (0:00:00.088)       0:01:06.505 *********** 
+Tuesday 20 May 2025  05:00:04 +0000 (0:00:00.094)       0:01:06.600 *********** 
+Tuesday 20 May 2025  05:00:04 +0000 (0:00:00.084)       0:01:06.684 *********** 
+Tuesday 20 May 2025  05:00:04 +0000 (0:00:00.200)       0:01:06.885 *********** 
+Tuesday 20 May 2025  05:00:04 +0000 (0:00:00.087)       0:01:06.973 *********** 
+Tuesday 20 May 2025  05:00:04 +0000 (0:00:00.083)       0:01:07.057 *********** 
+Tuesday 20 May 2025  05:00:04 +0000 (0:00:00.094)       0:01:07.151 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.086)       0:01:07.238 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.088)       0:01:07.326 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.104)       0:01:07.431 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.117)       0:01:07.549 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.086)       0:01:07.636 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.087)       0:01:07.723 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.087)       0:01:07.810 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.111)       0:01:07.921 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.088)       0:01:08.010 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.100)       0:01:08.110 *********** 
+Tuesday 20 May 2025  05:00:05 +0000 (0:00:00.085)       0:01:08.196 *********** 
+Tuesday 20 May 2025  05:00:06 +0000 (0:00:00.185)       0:01:08.381 *********** 
+Tuesday 20 May 2025  05:00:06 +0000 (0:00:00.094)       0:01:08.475 *********** 
+Tuesday 20 May 2025  05:00:06 +0000 (0:00:00.098)       0:01:08.574 *********** 
+
+TASK [container-engine/containerd-common : Containerd-common | check if fedora coreos] ************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+Tuesday 20 May 2025  05:00:06 +0000 (0:00:00.381)       0:01:08.955 *********** 
+
+TASK [container-engine/containerd-common : Containerd-common | set is_ostree] *********************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+Tuesday 20 May 2025  05:00:06 +0000 (0:00:00.151)       0:01:09.106 *********** 
+
+TASK [container-engine/containerd-common : Containerd-common | gather os specific variables] ******************************************************************************************************************************************************
+ok: [k8s-ctp01] => (item=/kubespray/roles/container-engine/docker/vars/../vars/ubuntu.yml)
+Tuesday 20 May 2025  05:00:07 +0000 (0:00:00.233)       0:01:09.340 *********** 
+Tuesday 20 May 2025  05:00:07 +0000 (0:00:00.105)       0:01:09.446 *********** 
+Tuesday 20 May 2025  05:00:07 +0000 (0:00:00.085)       0:01:09.531 *********** 
+Tuesday 20 May 2025  05:00:07 +0000 (0:00:00.086)       0:01:09.617 *********** 
+Tuesday 20 May 2025  05:00:07 +0000 (0:00:00.084)       0:01:09.702 *********** 
+Tuesday 20 May 2025  05:00:07 +0000 (0:00:00.121)       0:01:09.823 *********** 
+Tuesday 20 May 2025  05:00:07 +0000 (0:00:00.104)       0:01:09.928 *********** 
+
+TASK [container-engine/docker : Docker | Get package facts] ***************************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+Tuesday 20 May 2025  05:00:10 +0000 (0:00:03.192)       0:01:13.120 *********** 
+
+TASK [container-engine/docker : Docker | Find docker packages] ************************************************************************************************************************************************************************************
+ok: [k8s-ctp01]
+Tuesday 20 May 2025  05:00:11 +0000 (0:00:00.195)       0:01:13.316 *********** 
+root@k8s-ctp01:~/kubespray/inventory/mycluster# 
+root@k8s-ctp01:~/kubespray/inventory/mycluster# 
+
